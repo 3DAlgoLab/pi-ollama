@@ -1,0 +1,42 @@
+{
+  "name": "@0xkobold/pi-ollama",
+  "version": "0.1.7",
+  "description": "Ollama extension for pi-coding-agent. Unified local + cloud Ollama support with model management",
+  "keywords": [
+    "pi-package",
+    "ollama",
+    "llm",
+    "local-ai"
+  ],
+  "author": "0xKobold",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "bun test"
+  },
+  "pi": {
+    "extensions": [
+      "./dist/index.js"
+    ],
+    "image": "https://ollama.com/public/ollama.png"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": ">=0.6.0",
+    "@sinclair/typebox": ">=0.32.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0xKobold/pi-ollama"
+  },
+  "bugs": {
+    "url": "https://github.com/0xKobold/pi-ollama/issues"
+  },
+  "homepage": "https://github.com/0xKobold/pi-ollama#readme"
+}
