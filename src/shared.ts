@@ -301,6 +301,27 @@ export async function fetchModelDetails(
       data.context_length = runtimeContext;
     }
 
+    // Special case: Use our context-optimized models for qwen3-coder-next
+    if (modelName === 'qwen3-coder-next:latest' || modelName === 'qwen3-coder-next') {
+      // Priority: 200K > 128K > 64K > original
+      const ctx200 = await getRuntimeContextLength(client, 'qwen3-coder-next-200k:latest');
+      if (ctx200) {
+        data.context_length = ctx200;
+      } else {
+        const ctx128 = await getRuntimeContextLength(client, 'qwen3-coder-next-128k:latest');
+        if (ctx128) {
+          data.context_length = ctx128;
+        } else {
+          const ctx64 = await getRuntimeContextLength(client, 'qwen3-coder-next-64k:latest');
+          if (ctx64) {
+            data.context_length = ctx64;
+          } else if (data.context_length === 40960) {
+            data.context_length = 65536; // fallback
+          }
+        }
+      }
+    }
+
     return data;
   } catch {
     return null;

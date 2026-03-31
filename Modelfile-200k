@@ -1,0 +1,2 @@
+FROM qwen3-coder-next:latest
+PARAMETER num_ctx 200000

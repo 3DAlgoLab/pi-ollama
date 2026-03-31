@@ -224,6 +224,11 @@ async function handleStatus(ctx: any) {
     `   ${gpuInfo}`,
   ];
   ctx.ui?.notify?.(lines.join('\n'), 'info');
+
+  // Show info about context-optimized models
+  if (hasLocal) {
+    ctx.ui?.notify?.('💡 Context-optimized models:\n   • qwen3-coder-next-200k:latest (200K context) 🔥\n   • qwen3-coder-next-128k:latest (128K context)\n   • qwen3-coder-next-64k:latest (64K context)', 'info');
+  }
 }
 
 async function handleModelInfo(args: string, ctx: any) {
