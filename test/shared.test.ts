@@ -143,23 +143,30 @@ describe("shared.ts - OpenAI Compatible Utilities", () => {
   });
 
   describe("Reasoning Detection", () => {
-    test("hasReasoningCapability detects coder models", () => {
-      expect(hasReasoningCapability("codellama")).toBe(true);
-      expect(hasReasoningCapability("deepseek-coder")).toBe(true);
-      expect(hasReasoningCapability("qwen2.5-coder")).toBe(true);
+    test("hasReasoningCapability prioritizes capabilities over name", () => {
+      // Model with 'coder' in name but NO 'thinking' capability
+      expect(hasReasoningCapability("qwen3-coder-next", { capabilities: ["completion", "tools"] })).toBe(false);
+      // Model with 'thinking' capability
+      expect(hasReasoningCapability("qwen3-coder-next", { capabilities: ["completion", "thinking", "tools"] })).toBe(true);
+      // DeepSeek R1 actually has thinking
+      expect(hasReasoningCapability("deepseek-r1", { capabilities: ["completion", "thinking"] })).toBe(true);
     });
 
-    test("hasReasoningCapability detects r1 models", () => {
-      expect(hasReasoningCapability("deepseek-r1")).toBe(true);
+    test("hasReasoningCapability detects r1 models (fallback to name)", () => {
+      expect(hasReasoningCapability("deepseek-r1", { capabilities: ["completion"] })).toBe(true);
     });
 
-    test("hasReasoningCapability detects kimi", () => {
-      expect(hasReasoningCapability("kimi-k2.5")).toBe(true);
+    test("hasReasoningCapability detects kimi (fallback to name)", () => {
+      expect(hasReasoningCapability("kimi-k2.5", { capabilities: ["completion"] })).toBe(true);
     });
 
     test("hasReasoningCapability false for regular models", () => {
       expect(hasReasoningCapability("llama3")).toBe(false);
       expect(hasReasoningCapability("mistral")).toBe(false);
+      // Codellama is removed from fallback heuristic
+      expect(hasReasoningCapability("codellama")).toBe(false);
+      // qwen2.5-coder is removed from fallback heuristic
+      expect(hasReasoningCapability("qwen2.5-coder")).toBe(false);
     });
   });
 });

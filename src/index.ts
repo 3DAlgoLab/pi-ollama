@@ -13,7 +13,12 @@ import {
   getContextLength,
   hasVisionCapability,
   hasReasoningCapability,
+  debug,
   listAllModels,
+  getRuntimeContextLength,
+  getGPUFreeMemory,
+  estimateContextFromGPU,
+  getContextLengthWithGPUHealth,
   type OllamaConfig,
   type OllamaClients,
   type ModelDetails,
@@ -31,6 +36,10 @@ export {
   hasVisionCapability,
   hasReasoningCapability,
   listAllModels,
+  getRuntimeContextLength,
+  getGPUFreeMemory,
+  estimateContextFromGPU,
+  getContextLengthWithGPUHealth,
   chat,
   chatStream,
   type OllamaConfig,
@@ -87,10 +96,33 @@ function loadConfig(pi: ExtensionAPI) {
 // MODEL CREATION
 // ============================================================================
 
-function createModel(name: string, isCloud: boolean, details?: ModelDetails): ProviderModelConfig {
-  const contextWindow = details ? getContextLength(details.model_info) : 128000;
+async function createModel(
+  name: string,
+  isCloud: boolean,
+  details?: ModelDetails,
+  clients?: OllamaClients | null
+): Promise<ProviderModelConfig> {
+  let contextWindow = 128000;
+
+  // Use GPU-aware context length if clients available and not cloud model
+  if (clients && !isCloud) {
+    try {
+      contextWindow = await getContextLengthWithGPUHealth(
+        clients.local,
+        name,
+        details?.model_info
+      );
+    } catch {
+      // Fallback to default
+    }
+  } else if (details) {
+    contextWindow = getContextLength(details.model_info, name);
+  }
+
   const isVision = details ? hasVisionCapability(details) : false;
-  const isReasoning = hasReasoningCapability(name);
+  const isReasoning = hasReasoningCapability(name, details);
+
+  debug(`${name}: context=${contextWindow}, isVision=${isVision}, isReasoning=${isReasoning}`);
 
   const cloudEmoji = isCloud ? '☁️ ' : '';
   const visionEmoji = isVision ? '👁️ ' : '';
@@ -116,9 +148,11 @@ async function fetchLocalModels(): Promise<ProviderModelConfig[]> {
 
   try {
     const models = await listAllModels(clients);
-    return models
-      .filter(m => !m.isCloud)
-      .map(m => createModel(m.name, false, m.details));
+    return Promise.all(
+      models
+        .filter(m => !m.isCloud)
+        .map(m => createModel(m.name, false, m.details, clients))
+    );
   } catch (err) {
     console.log(`[pi-ollama] Error fetching local models: ${err}`);
     return [];
@@ -130,20 +164,24 @@ async function fetchCloudModels(): Promise<ProviderModelConfig[]> {
 
   try {
     const models = await listAllModels(clients);
-    return models
-      .filter(m => m.isCloud)
-      .map(m => createModel(m.name.replace(':cloud', ''), true, m.details));
+    return Promise.all(
+      models
+        .filter(m => m.isCloud)
+        .map(m => createModel(m.name.replace(':cloud', ''), true, m.details, clients))
+    );
   } catch {
     // Return default cloud models if fetch fails
-    return [
-      'kimi-k2.5',
-      'llama3.3',
-      'qwen2.5',
-      'mistral',
-      'codellama',
-      'deepseek-r1',
-      'gemma2',
-    ].map(name => createModel(name, true));
+    return Promise.all(
+      [
+        'kimi-k2.5',
+        'llama3.3',
+        'qwen2.5',
+        'mistral',
+        'codellama',
+        'deepseek-r1',
+        'gemma2',
+      ].map(name => createModel(name, true))
+    );
   }
 }
 
@@ -159,6 +197,20 @@ async function handleStatus(ctx: any) {
 
   const hasLocal = await isLocalRunning(clients.local);
 
+  // Get GPU memory info
+  let gpuInfo = '❌ nvidia-smi not available';
+  try {
+    const gpuFree = await getGPUFreeMemory();
+    if (gpuFree.length > 0) {
+      const totalMB = gpuFree.reduce((a, b) => a + b, 0);
+      gpuInfo = `${totalMB} MB total free (${gpuFree.map(n => n + 'MB').join(', ')})`;
+    } else {
+      gpuInfo = '❌ No GPUs detected';
+    }
+  } catch (err) {
+    gpuInfo = `❌ Error: ${err}`;
+  }
+
   const lines = [
     '🦙 Ollama Status',
     '',
@@ -167,6 +219,9 @@ async function handleStatus(ctx: any) {
     '',
     `Base URL: ${CONFIG.baseUrl}`,
     `Cloud URL: ${CONFIG.cloudUrl}`,
+    '',
+    '💾 GPU Memory:',
+    `   ${gpuInfo}`,
   ];
   ctx.ui?.notify?.(lines.join('\n'), 'info');
 }

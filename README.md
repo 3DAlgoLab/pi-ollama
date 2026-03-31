@@ -116,7 +116,7 @@ pi install ./
 ## API Functions
 
 ```typescript
-import { fetchModelDetails, getContextLength, hasVisionCapability } from '@0xkobold/pi-ollama';
+import { fetchModelDetails, getContextLength, hasVisionCapability, hasReasoningCapability } from '@0xkobold/pi-ollama';
 
 // Get model details
 const details = await fetchModelDetails('gemma3', 'http://localhost:11434');
@@ -126,13 +126,16 @@ const ctx = getContextLength(details?.model_info); // 131072
 
 // Check vision support
 const hasVision = hasVisionCapability(details); // true
+
+// Check reasoning support
+const hasReasoning = hasReasoningCapability('model-name', details); // respects capabilities first
 ```
 
 ## Supported Capabilities
 
 The extension detects:
 - **Vision**: From `capabilities` array or `model_info` keys
-- **Reasoning**: From model name (coder, r1, deepseek, think, reason)
+- **Reasoning**: From `capabilities` array (`"thinking"`) or name heuristic (r1, deepseek, kimi, think, reason)
 - **Context Length**: From `model_info.*.context_length`
 
 ## License
